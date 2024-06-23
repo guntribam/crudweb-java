@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To-Do App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #todo-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        #todo-list li {
+            margin: 5px 0;
+            padding: 5px;
+            background-color: #f4f4f4;
+            border: 1px solid #ddd;
+        }
+        #todo-list li button {
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>To-Do App</h1>
+    <form id="todo-form">
+        <input type="text" id="todo-input" placeholder="Add a new task" required>
+        <button type="submit">Add Task</button>
+        <button type="button" id="cancel-button" style="display: none;">Cancel</button>
+    </form>
+    <ul id="todo-list"></ul>
+
+    <script>
+        let editMode = false;
+        let editId = null;
+
+        document.getElementById('todo-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const taskInput = document.getElementById('todo-input');
+            const task = taskInput.value.trim();
+
+            if (editMode) {
+                updateTask(editId, task);
+            } else {
+                addTask(task);
+            }
+
+            taskInput.value = '';
+            taskInput.focus();
+        });
+
+        document.getElementById('cancel-button').addEventListener('click', function() {
+            resetForm();
+        });
+
+        function addTask(task) {
+            fetch('/todo', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ nome: task })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadTasks();
+                } else {
+                    alert('Failed to add task');
+                }
+            });
+        }
+
+        function updateTask(id, task) {
+            fetch(`/todo/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ id, nome: task })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadTasks();
+                    resetForm();
+                } else {
+                    alert('Failed to update task');
+                }
+            });
+        }
+
+        function deleteTask(id) {
+            fetch(`/todo/${id}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadTasks();
+                } else {
+                    alert('Failed to delete task');
+                }
+            });
+        }
+
+        function loadTasks() {
+            fetch('/todo')
+            .then(response => response.json())
+            .then(data => {
+                const todoList = document.getElementById('todo-list');
+                todoList.innerHTML = '';
+                console.log({data});
+                data.forEach(task => {
+                    const li = document.createElement('li');
+                    li.textContent = task.nome;
+
+                    const editButton = document.createElement('button');
+                    editButton.textContent = 'Edit';
+                    editButton.onclick = function() {
+                        document.getElementById('todo-input').value = task.nome;
+                        document.querySelector('#todo-form button[type="submit"]').textContent = 'Update Task';
+                        document.getElementById('cancel-button').style.display = 'inline';
+                        editMode = true;
+                        editId = task.id;
+                    };
+
+                    const deleteButton = document.createElement('button');
+                    deleteButton.textContent = 'Delete';
+                    deleteButton.onclick = function() {
+                        deleteTask(task.id);
+                    };
+
+                    li.appendChild(editButton);
+                    li.appendChild(deleteButton);
+
+                    todoList.appendChild(li);
+                });
+            });
+        }
+
+        function resetForm() {
+            document.getElementById('todo-input').value = '';
+            document.querySelector('#todo-form button[type="submit"]').textContent = 'Add Task';
+            document.getElementById('cancel-button').style.display = 'none';
+            editMode = false;
+            editId = null;
+        }
+
+        loadTasks();
+    </script>
+</body>
+</html>
